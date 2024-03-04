@@ -18,13 +18,16 @@
 <script setup>
 
 import {useChatStore} from "@/store/chat-store.js";
+import {useRoute} from 'vue-router'
+const route = useRoute()
 const chatStore = useChatStore()
 import {onMounted, onUnmounted, toRefs} from "vue";
-const {initWebSocket , sendMessage,chatMessageTypingHandler,getActiveChatId , chatUser,fetchMessage} = chatStore
+const {initWebSocket , sendMessage,chatMessageTypingHandler,getActiveChatId , chatUser,fetchMessage,send_user} = chatStore
 const {messages , new_message , socket , userId} = toRefs(chatStore)
 onMounted(()=>{
  initWebSocket()
  chatUser()
+  send_user()
 })
 
 </script>

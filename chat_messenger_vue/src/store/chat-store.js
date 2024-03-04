@@ -60,38 +60,33 @@ export const useChatStore = defineStore('chat',
         const route = useRoute()
         const chatId = ref(route.params.chatId)
 
-        const getActiveChatId = (route) => {
+        const getActiveChatId=(route)=>{
             return route && route.params ? route.params.chatId : null
         }
 
-        const fetchMessage = async () => {
+        const fetchMessage = async ()=>{
             const currentChatId = getActiveChatId(route)
-            if (currentChatId) {
+            if (currentChatId){
                 const url =
                     ApiEndpoints.CHAT_MESSAGE_URL.replace(Constants.CHAT_ID_PLACE_HOLDER,
                         currentChatId
-                    ) + "?limit=20&offset=0"
+                    ) +"?limit=20&offset=0"
             }
         }
-        const chatUser = async () => {
-            await axios.get(serverUrl.BASE_URL + `api/v1/users/${getUserId()}/chats`, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
-            }).then(response => {
+        const chatUser =async ()=>{
+            await axios.get(`api/v1/users/${getUserId()}/chats/`).then(response=>{
                 console.log(response)
             })
         }
         const chatContainer = document.getElementById('chatContainer')
-        const scrollTop = () => {
-            chatContainer.scrollTop = chatContainer.scrollHeight
+        const scrollTop=()=>{
+           chatContainer.scrollTop = chatContainer.scrollHeight
         }
 
         //GET USER ID//
-        const getUserId = () => {
-            let token = localStorage.getItem('token')
-            console.log(token)
-            if (token) {
+        const getUserId=()=>{
+            let token = getCookie(Constants.ACCESS_PROPERTY)
+            if (token){
                 let decodedToken = jwtDecode(token)
                 return decodedToken.userId
             }
@@ -99,12 +94,12 @@ export const useChatStore = defineStore('chat',
         }
         // WEB SOCKET ///
         const initWebSocket = () => {
-            socket.value = new WebSocket(`ws://localhost:8000/ws/users/${getUserId()}/chat/`);
-            socket.value.onopen = onWebSocketOpen;
-            socket.value.onmessage = onWebSocketMessage;
-            socket.value.onerror = onWebSocketError;
-            socket.value.onclose = onWebSocketClose;
-            loadMessagesFromLocalStorage()
+                socket.value = new WebSocket(`ws://localhost:8000/ws/users/${getUserId()}/chat/`);
+                socket.value.onopen = onWebSocketOpen;
+                socket.value.onmessage = onWebSocketMessage;
+                socket.value.onerror = onWebSocketError;
+                socket.value.onclose = onWebSocketClose;
+                loadMessagesFromLocalStorage()
         };
         const onWebSocketOpen = (e) => {
             isConnected.value = true
@@ -112,26 +107,25 @@ export const useChatStore = defineStore('chat',
         };
         const onWebSocketMessage = (event) => {
             let data = JSON.parse(event.data)
-            messages.value.push({from: 'other', message: data.message})
+          messages.value.push({from :'other' , message: data.message })
         };
         const sendMessage = () => {
-            if (chatId !== null) {
-                let to_send = {
-                    from: signUp.value.firstName
-                    , message: new_message.value
-                    , action: SocketActions.MESSAGE
-                    , user: getUserId(),
-                    roomId: getActiveChatId(route)
-                }
-                socket.value.send(JSON.stringify(to_send)) ,
-                    messages.value.push({from: 'me', message: new_message.value})
-                saveMessagesToLocalStorage()
-                new_message.value = ''
-                scrollTop()
-            } else {
-                console.log('error dari')
-            }
+            if (chatId !== null){
+          let to_send = {
+                from :signUp.value.firstName
+              , message : new_message.value
+              , action :SocketActions.MESSAGE
+              ,user :getUserId(),
+              roomId: getActiveChatId(route)
         }
+            socket.value.send(JSON.stringify(to_send)) ,
+            messages.value.push({from: 'me' , message: new_message.value})
+            saveMessagesToLocalStorage()
+            new_message.value = ''
+                scrollTop()
+        }else {
+                console.log('error dari')
+            }}
         const onWebSocketError = (error) => {
             isConnected.value = false
             console.log('websocket error', error)
@@ -141,7 +135,7 @@ export const useChatStore = defineStore('chat',
             console.log('websocket is disconnect', event)
         }
 
-        // Save messages to local storage
+       // Save messages to local storage
         const saveMessagesToLocalStorage = () => {
             localStorage.setItem('messages', JSON.stringify(messages.value));
         };
@@ -232,10 +226,8 @@ export const useChatStore = defineStore('chat',
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     },
                 })
-            const token = res.data.access
-            const refresh = res.data.refresh
-            localStorage.setItem('token', token)
-            localStorage.setItem('refresh', refresh)
+            const token = res.data.token
+            localStorage.setItem('token', JSON.stringify(token))
             await router.push('/')
         }
 
