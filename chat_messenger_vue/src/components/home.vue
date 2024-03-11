@@ -7,7 +7,6 @@
     <v-col class="v-col-xl-10 v-col-sm-10 v-col-md-10" style=";border: 1px solid #9999">
       <chat-body/>
     </v-col>
-
   </v-layout>
   </v-container>
 </template>

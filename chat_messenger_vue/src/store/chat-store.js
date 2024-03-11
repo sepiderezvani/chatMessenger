@@ -1,6 +1,6 @@
 import {defineStore} from "pinia";
 import axios from "axios";
-import {computed, onMounted, ref} from "vue";
+import {computed, nextTick, onMounted,ref} from "vue";
 import router from "@/router/index.js";
 import {jwtDecode} from "jwt-decode";
 import {useRoute} from "vue-router";
@@ -118,7 +118,7 @@ export const useChatStore = defineStore('chat',
                     image: item.userImage,
                     userName: item.userName
                 }));
-                console.log(chatMessages)
+                console.log(chats.value)
             } catch (error) {
                 console.error("Error fetching chat messages:", error);
                 // Handle error appropriately
@@ -136,6 +136,14 @@ export const useChatStore = defineStore('chat',
             }
             return ''
         }
+        const messagesContainer = ref(null)
+        const scrollToBottom =async () => {
+           await nextTick(() => {
+                if (messagesContainer.value) {
+                    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+                }
+            });
+        };
         const loggedInUserId = getUserId();
         const getChatMessageClassName = (userId) => {
             return loggedInUserId === userId
@@ -192,15 +200,14 @@ export const useChatStore = defineStore('chat',
                     userName: newMessage.userName
                 });
             }
-            if (newMessage.action === SocketActions.TYPING) {
+            if (newMessage.action === SocketActions.TYPING && newMessage.user !== userId) {
                 if (newMessage.typing && !usersTyping.value.includes(newMessage.user)) {
                     usersTyping.value.push(newMessage.user);
                 } else if (!newMessage.typing) {
-                    usersTyping.value = usersTyping.value.filter((userId) => userId !== data.user);
+                    usersTyping.value = usersTyping.value.filter((userId) => userId !== newMessage.user);
                 }
             }
         }
-
 
         const sendMessage = () => {
             const activeChatId = getActiveChatId(route)
@@ -379,7 +386,9 @@ export const useChatStore = defineStore('chat',
             is_date,
             logOutUser,
             getChatMessageClassName,
-            reversChatMessage
+            reversChatMessage,
+            scrollToBottom,
+            messagesContainer,
 
         }
     })

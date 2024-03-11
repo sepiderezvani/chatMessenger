@@ -15,16 +15,15 @@
       </v-col>
     <v-btn class="v-btn--block" style="margin-top: 50px;color: #da2e2e;border:1px solid #da2e2e" @click="logOutUser">log out</v-btn>
   </v-container>
-
 </template>
 <script setup>
 import {useChatStore} from "@/store/chat-store.js";
 import {onMounted, ref, toRefs, watch} from "vue";
 const loading = ref(false)
 const chatStore = useChatStore()
-const {chats , messageOfUser,chatMessages,messages ,logOutUser} =chatStore
+const {chats , messageOfUser,chatMessages,messages ,logOutUser,chatUser} =chatStore
 onMounted(()=>{
-  messageOfUser()
+  chatUser()
 })
 </script>
 <style>
