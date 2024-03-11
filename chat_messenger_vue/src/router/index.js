@@ -11,7 +11,24 @@ const routes = [
     {
         path: '/',
         name: 'home',
-        component: home
+        component: home,
+        children: [
+            {
+                path: 'chatBody',
+                name: 'chatBody',
+                component: () => import('@/components/chatBody.vue')
+            },
+            {
+                path: 'sideBar',
+                name: 'sideBar',
+                component: () => import('@/components/sideBar.vue')
+            },
+            {
+                path: 'user/:roomId',
+                name: "user",
+                component: () => import('@/components/user.vue')
+            }
+        ]
     },
     {
         path: "/auth",
@@ -29,19 +46,6 @@ const routes = [
             },
         ]
     },
-    {
-        path: '/chatBody',
-        name: 'chatBody',
-        component: chatBody,
-        meta: {requiresAuth: true}
-    },
-    {
-        //
-        path: '/sideBar',
-        name: 'sideBar',
-        component: sideBar,
-        meta: {requiresAuth: true}
-    }
 ]
 
 const router = createRouter({

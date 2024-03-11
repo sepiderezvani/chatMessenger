@@ -44,6 +44,13 @@ export const useChatStore = defineStore('chat',
             TYPING: "typing",
             ONLINE_USER: "onlineUser",
         };
+        const AppPaths = {
+            HOME: "/",
+            CHAT_ROOM: "/c/:chatId",
+            LOGIN: "/login",
+            SIGN_UP: "/signup",
+        };
+
         const returnUrl = null
         const success = ref(false)
 
@@ -56,76 +63,174 @@ export const useChatStore = defineStore('chat',
         const roomInput = ref([])
         const userId = ref(null)
         const isTypingSignalSent = ref(false)
-        let typingTimer = 0
+        const typingTimer = ref(null)
         const route = useRoute()
         const chatId = ref(route.params.chatId)
+        const chats = ref([])
+        const chatMessages = ref([])
+        const usersTyping = ref([])
 
-        const getActiveChatId=(route)=>{
-            return route && route.params ? route.params.chatId : null
+
+        const getActiveChatId = (route) => {
+            return route && route.params ? route.params.roomId : null
         }
 
-        const fetchMessage = async ()=>{
-            const currentChatId = getActiveChatId(route)
-            if (currentChatId){
-                const url =
-                    ApiEndpoints.CHAT_MESSAGE_URL.replace(Constants.CHAT_ID_PLACE_HOLDER,
-                        currentChatId
-                    ) +"?limit=20&offset=0"
-            }
-        }
-        const chatUser =async ()=>{
-            await axios.get(`api/v1/users/${getUserId()}/chats/`).then(response=>{
-                console.log(response)
+        const chatUser = async () => {
+            const response = await axios.get(serverUrl.BASE_URL + `api/v1/users/${getUserId()}/chats`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+            const userId = getUserId()
+            const uniqueRoomIds = new Set()
+            let newResult = null
+            response.data.forEach((item) => {
+                if (item.type === "DM" || item.type === "SELF" && !uniqueRoomIds.has(item.roomId)) {
+                    newResult = {
+                        roomId: item.roomId,
+                        name: '',
+                        image: '',
+                        id: ''
+                    }
+                    let member = item.member.find(user => user.id !== userId || item.type === "SELF");
+                    if (member) {
+                        newResult.name = member.first_name + " " + member.last_name;
+                        newResult.image = member.image;
+                        newResult.id = member.id;
+                    }
+                }
+                chats.value.push(newResult)
             })
         }
-        const chatContainer = document.getElementById('chatContainer')
-        const scrollTop=()=>{
-           chatContainer.scrollTop = chatContainer.scrollHeight
+        const messageOfUser = async () => {
+            const chatRoomId = getActiveChatId(route);
+            try {
+                const res = await axios.get(serverUrl.BASE_URL + `api/v1/chats/${chatRoomId}/messages`, {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                chatMessages.value = res.data.map(item => ({
+                    roomId: chatRoomId,
+                    message: item.message,
+                    time: item.timestamp,
+                    user: item.user,
+                    image: item.userImage,
+                    userName: item.userName
+                }));
+                console.log(chatMessages)
+            } catch (error) {
+                console.error("Error fetching chat messages:", error);
+                // Handle error appropriately
+            }
         }
-
+        const reversChatMessage =computed(()=>{
+            return [...chatMessages.value].reverse()
+        })
         //GET USER ID//
-        const getUserId=()=>{
-            let token = getCookie(Constants.ACCESS_PROPERTY)
-            if (token){
+        const getUserId = () => {
+            const token = localStorage.getItem('token')
+            if (token) {
                 let decodedToken = jwtDecode(token)
                 return decodedToken.userId
             }
             return ''
         }
+        const loggedInUserId = getUserId();
+        const getChatMessageClassName = (userId) => {
+            return loggedInUserId === userId
+                ? "text-right justify-end"
+                : "";
+        };
+        //// get time ///
+        const is_date = (date) => {
+            if (Object.prototype.toString.call(date) === "[object Date]") {
+                return true;
+            }
+            return false;
+        };
+        const getTimeFromDate = (date) => {
+            let dateObj = is_date(date) ? date : new Date(date);
+            let hour = dateObj.getHours();
+            let minute = dateObj.getMinutes();
+            let meridian = "am";
+            if (hour > 12) {
+                hour -= 12;
+                meridian = "pm";
+            }
+            if (hour === 0) {
+                hour = 12;
+            }
+            if (minute < 10) {
+                minute = "0" + minute;
+            }
+            return hour + ":" + minute + " " + meridian;
+        };
         // WEB SOCKET ///
         const initWebSocket = () => {
-                socket.value = new WebSocket(`ws://localhost:8000/ws/users/${getUserId()}/chat/`);
-                socket.value.onopen = onWebSocketOpen;
-                socket.value.onmessage = onWebSocketMessage;
-                socket.value.onerror = onWebSocketError;
-                socket.value.onclose = onWebSocketClose;
-                loadMessagesFromLocalStorage()
+            socket.value = new WebSocket(`ws://localhost:8000/ws/users/${getUserId()}/chat/`);
+            socket.value.onopen = onWebSocketOpen;
+            socket.value.onmessage = onWebSocketMessage;
+            socket.value.onerror = onWebSocketError;
+            socket.value.onclose = onWebSocketClose;
+            // loadMessagesFromLocalStorage()
         };
         const onWebSocketOpen = (e) => {
             isConnected.value = true
             console.log('websocket is connected')
+            socket.value.send(JSON.stringify({action: 'subscribe', roomId: getActiveChatId(route)}))
         };
         const onWebSocketMessage = (event) => {
-            let data = JSON.parse(event.data)
-          messages.value.push({from :'other' , message: data.message })
-        };
-        const sendMessage = () => {
-            if (chatId !== null){
-          let to_send = {
-                from :signUp.value.firstName
-              , message : new_message.value
-              , action :SocketActions.MESSAGE
-              ,user :getUserId(),
-              roomId: getActiveChatId(route)
+            const newMessage = JSON.parse(event.data)
+            const userImageUrl = messageOfUser().image
+            if (newMessage.action === SocketActions.MESSAGE) {
+                chatMessages.value.push({
+                    message: newMessage.message,
+                    user: newMessage.user,
+                    time: newMessage.timestamp,
+                    userImage: JSON.stringify(userImageUrl),
+                    userName: newMessage.userName
+                });
+            }
+            if (newMessage.action === SocketActions.TYPING) {
+                if (newMessage.typing && !usersTyping.value.includes(newMessage.user)) {
+                    usersTyping.value.push(newMessage.user);
+                } else if (!newMessage.typing) {
+                    usersTyping.value = usersTyping.value.filter((userId) => userId !== data.user);
+                }
+            }
         }
-            socket.value.send(JSON.stringify(to_send)) ,
-            messages.value.push({from: 'me' , message: new_message.value})
-            saveMessagesToLocalStorage()
-            new_message.value = ''
-                scrollTop()
-        }else {
+
+
+        const sendMessage = () => {
+            const activeChatId = getActiveChatId(route)
+            if (activeChatId !== null) {
+                let currentDateTime = new Date()
+                let userImageUrl = messageOfUser().image
+                let username = messageOfUser().userName
+                let to_send = {
+                    message: new_message.value
+                    , action: SocketActions.MESSAGE
+                    , user: getUserId(),
+                    roomId: activeChatId,
+                    // timestamp: currentDateTime.toISOString(),
+                    // userImage: userImageUrl,
+                    // userName: username
+                }
+                socket.value.send(JSON.stringify(to_send))
+                // chatMessages.value.push({
+                //     roomId: activeChatId,
+                //     message: new_message.value,
+                //     user: getUserId(),
+                //     time: to_send.timestamp,
+                //     image: to_send.userImage,
+                //     userName: to_send.username
+                // })
+                new_message.value = ''
+            } else {
                 console.log('error dari')
-            }}
+            }
+        }
         const onWebSocketError = (error) => {
             isConnected.value = false
             console.log('websocket error', error)
@@ -134,20 +239,11 @@ export const useChatStore = defineStore('chat',
             isConnected.value = false
             console.log('websocket is disconnect', event)
         }
+        const logOutUser = async () => {
+            localStorage.removeItem('token')
+            await router.push('auth/login')
+        }
 
-       // Save messages to local storage
-        const saveMessagesToLocalStorage = () => {
-            localStorage.setItem('messages', JSON.stringify(messages.value));
-        };
-
-
-        // Load messages from local storage
-        const loadMessagesFromLocalStorage = () => {
-            const storedMessages = localStorage.getItem('messages');
-            if (storedMessages) {
-                messages.value = JSON.parse(storedMessages);
-            }
-        };
 
         //      ACTION ////
 
@@ -163,49 +259,20 @@ export const useChatStore = defineStore('chat',
         }
         const chatMessageTypingHandler = (event) => {
             if (event.keyCode !== Constants.ENTER_KEY_CODE) {
-                if (!isTypingSignalSent) {
+                if (!isTypingSignalSent.value) {
                     sendTypingSignal(true);
                     isTypingSignalSent.value = true;
                 }
-                clearTimeout(typingTimer);
-                typingTimer = setTimeout(() => {
+                clearTimeout(typingTimer.value);
+                typingTimer.value = setTimeout(() => {
                     sendTypingSignal(false);
                     isTypingSignalSent.value = false;
                 }, 3000);
             } else {
-                clearTimeout(typingTimer);
+                clearTimeout(typingTimer.value);
+                sendTypingSignal(false)
                 isTypingSignalSent.value = false;
             }
-        };
-
-        //  cookie Utils  //
-
-        const setCookie = (cookieName, cookieValue, expairydays = 30) => {
-            const today = new Date();
-            today.setTime(today.getTime() + expairydays * 24 * 60 * 60 * 1000);
-            let expires = "expires=" + today.toUTCString();
-            document.cookie = cookieName + "=" + cookieValue + ";" + expires + ";path=/";
-        };
-
-        const getCookie = (cookieName) => {
-            let name = cookieName + "=";
-            let decodedCookie = decodeURIComponent(document.cookie);
-            let cookieList = decodedCookie.split(";");
-            for (let i = 0; i < cookieList.length; i++) {
-                let cookie = cookieList[i];
-                while (cookie.charAt(0) === " ") {
-                    cookie = cookie.substring(1);
-                }
-                if (cookie.indexOf(name) === 0) {
-                    return cookie.substring(name.length, cookie.length);
-                }
-            }
-            return null;
-        };
-
-        const deleteCookie = (cookieName) => {
-            document.cookie =
-                cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         };
         const fileInputChange = computed(() => {
             return (fileInput) => {
@@ -226,8 +293,10 @@ export const useChatStore = defineStore('chat',
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     },
                 })
-            const token = res.data.token
-            localStorage.setItem('token', JSON.stringify(token))
+            const token = res.data.access
+            const refresh = res.data.refresh
+            localStorage.setItem('token', token)
+            localStorage.setItem('refresh', refresh)
             await router.push('/')
         }
 
@@ -243,14 +312,35 @@ export const useChatStore = defineStore('chat',
 
                 const res = await axios.post(`${serverUrl.BASE_URL}${ApiEndpoints.SIGN_UP_URL}`, formData,
                 )
-                const token = res.data.token
+                const token = res.data.access
                 localStorage.setItem('token', token)
-                await router.push('/login')
+                await router.push('/auth/login')
                 success.value = true
             } catch (e) {
             }
 
         }
+        // const addFriend= async (memberId)=>{
+        //   const userId = getUserId()
+        //     let requestBody = {
+        //         members: [memberId, userId],
+        //         type: "DM",
+        //     };
+        //     try {
+        //         const response = await axios.get("http://localhost:8000/api/v1/chats", // The request body
+        //             {
+        //                 headers: {
+        //                     Authorization: `Bearer ${localStorage.getItem('token')}`
+        //                 }
+        //             }
+        //         );
+        //         console.log('Response data:', response.data);
+        //         // Additional logic after successful request (e.g., update state, show message)
+        //     } catch (error) {
+        //         console.error('Error adding friend:', error);
+        //         // Error handling logic (e.g., show error message)
+        //     }
+        // }
         return {
             login,
             signUp,
@@ -273,19 +363,23 @@ export const useChatStore = defineStore('chat',
             Constants,
             userId,
             SocketActions,
-            saveMessagesToLocalStorage,
-            loadMessagesFromLocalStorage,
-            setCookie,
-            getCookie,
-            deleteCookie,
             getUserId,
             sendTypingSignal,
             chatMessageTypingHandler,
-            scrollTop,
-            fetchMessage,
             chatId,
             getActiveChatId,
             route,
             chatUser,
+            AppPaths,
+            chats,
+            messageOfUser,
+            chatMessages,
+            usersTyping,
+            getTimeFromDate,
+            is_date,
+            logOutUser,
+            getChatMessageClassName,
+            reversChatMessage
+
         }
     })
