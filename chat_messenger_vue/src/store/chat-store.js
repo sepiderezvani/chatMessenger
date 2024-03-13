@@ -69,12 +69,23 @@ export const useChatStore = defineStore('chat',
         const chats = ref([])
         const chatMessages = ref([])
         const usersTyping = ref([])
+        const onlineUser = ref([])
 
 
         const getActiveChatId = (route) => {
             return route && route.params ? route.params.roomId : null
         }
+        const profileOfUserId = computed(() => {
+            const activeChatId = getActiveChatId(route);
 
+            const rooms = chats.value.find(room=> room.roomId === activeChatId);
+            if (rooms) {
+                return {
+                    username: rooms.name,
+                    image: rooms.image
+                };
+            }
+        });
         const chatUser = async () => {
             const response = await axios.get(serverUrl.BASE_URL + `api/v1/users/${getUserId()}/chats`, {
                 headers: {
@@ -97,11 +108,13 @@ export const useChatStore = defineStore('chat',
                         newResult.name = member.first_name + " " + member.last_name;
                         newResult.image = member.image;
                         newResult.id = member.id;
+                        newResult.isOnline = onlineUser.value?.includes(member.id)
                     }
                 }
                 chats.value.push(newResult)
             })
         }
+
         const messageOfUser = async () => {
             const chatRoomId = getActiveChatId(route);
             try {
@@ -116,7 +129,8 @@ export const useChatStore = defineStore('chat',
                     time: item.timestamp,
                     user: item.user,
                     image: item.userImage,
-                    userName: item.userName
+                    userName: item.userName,
+                    isOnline : item.isOnline
                 }));
                 console.log(chats.value)
             } catch (error) {
@@ -174,6 +188,9 @@ export const useChatStore = defineStore('chat',
             }
             return hour + ":" + minute + " " + meridian;
         };
+   const onlineUsers =computed(()=>{
+       let online = chats.value.map()
+   })
         // WEB SOCKET ///
         const initWebSocket = () => {
             socket.value = new WebSocket(`ws://localhost:8000/ws/users/${getUserId()}/chat/`);
@@ -208,7 +225,6 @@ export const useChatStore = defineStore('chat',
                 }
             }
         }
-
         const sendMessage = () => {
             const activeChatId = getActiveChatId(route)
             if (activeChatId !== null) {
@@ -389,6 +405,6 @@ export const useChatStore = defineStore('chat',
             reversChatMessage,
             scrollToBottom,
             messagesContainer,
-
+profileOfUserId
         }
     })

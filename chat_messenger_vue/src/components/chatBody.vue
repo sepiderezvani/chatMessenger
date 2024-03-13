@@ -1,9 +1,12 @@
 <template>
   <v-container-fluid>
-    <v-col class="d-inline-flex pb-0 pt-0 mb-0 mt-0" style="border-bottom:1px solid #9999">
-      <img class="mr-6 mb-3" width="50" height="50" style="border-radius: 50%" src="../wp6390510.png" alt="">
-      <p class="mr-10 mt-3">sepideh rezvani</p>
-    </v-col>
+    <div v-if="profileOfUserId">
+      <v-col class="d-inline-flex pb-0 pt-0 mb-0 mt-0"
+             style="border-bottom:1px solid #9999">
+        <img class="mr-6 mb-3" width="50" height="50" style="border-radius: 50%" :src="profileOfUserId.image" alt="">
+        <p class="mr-10 mt-3">{{ profileOfUserId.username }}</p>
+      </v-col>
+    </div>
     <v-row style="" class="mt-1 ml-1">
       <v-col class="messages flex-wrap-reverse" ref="messagesContainer" style="overflow: auto;height: 635px">
         <div class="d-flex" v-for="(m , idx) in reversChatMessage"  :key="idx - 1" style='' id="chatContainer" :class="getChatMessageClassName(m.user)">
@@ -38,8 +41,8 @@ import {useRoute} from 'vue-router'
 const route = useRoute()
 const chatStore = useChatStore()
 import {onMounted, toRefs, watch, ref, nextTick, computed} from "vue";
-const {initWebSocket , sendMessage,chatMessageTypingHandler , getTimeFromDate, chatUser, messageOfUser,getChatMessageClassName,scrollToBottom ,getUserId,getActiveChatId} = chatStore
-const { new_message , socket , userId ,chatMessages ,reversChatMessage,isUserTyping , typingUserName , usersTyping,chats } = toRefs(chatStore)
+const {initWebSocket , sendMessage,chatMessageTypingHandler , getTimeFromDate, chatUser, messageOfUser,getChatMessageClassName,scrollToBottom ,getUserId,getActiveChatId } = chatStore
+const { new_message , socket , userId ,chatMessages ,reversChatMessage,isUserTyping , typingUserName , usersTyping,chats,profileOfUserId } = toRefs(chatStore)
 
 onMounted(()=>{
  initWebSocket()
@@ -85,21 +88,6 @@ watch(usersTyping, () => {
   handleTypingUsersChange();
 }, { deep: true });
 
-
-// const profileOfUserId2 = computed(() => {
-//   // Obtain the active chat ID
-//   const activeChatId = getActiveChatId(route);
-//
-//   // Find the chat that matches the active chat ID
-//   const activeChat = chats.value.find(chat => chat.roomId === activeChatId);
-//
-//   if (activeChat) {
-//       return {
-//         name: activeChat.first_name + ' ' + activeChat.last_name,
-//         image: activeChat.image
-//       };
-//   }
-// });
 </script>
 <style scoped>
 .typing {
