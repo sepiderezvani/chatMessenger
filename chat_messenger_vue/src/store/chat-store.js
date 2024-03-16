@@ -71,14 +71,16 @@ export const useChatStore = defineStore('chat',
         const usersTyping = ref([])
         const onlineUser = ref([])
 
-
+        //ACTIVE ROOM ID
         const getActiveChatId = (route) => {
             return route && route.params ? route.params.roomId : null
         }
+
+        // PROFILE OF USER
         const profileOfUserId = computed(() => {
             const activeChatId = getActiveChatId(route);
 
-            const rooms = chats.value.find(room=> room.roomId === activeChatId);
+            const rooms = chats.value.find(room => room.roomId === activeChatId);
             if (rooms) {
                 return {
                     username: rooms.name,
@@ -86,6 +88,8 @@ export const useChatStore = defineStore('chat',
                 };
             }
         });
+
+        // USERS
         const chatUser = async () => {
             const response = await axios.get(serverUrl.BASE_URL + `api/v1/users/${getUserId()}/chats`, {
                 headers: {
@@ -108,13 +112,15 @@ export const useChatStore = defineStore('chat',
                         newResult.name = member.first_name + " " + member.last_name;
                         newResult.image = member.image;
                         newResult.id = member.id;
-                        newResult.isOnline = onlineUser.value?.includes(member.id)
+                        newResult.isOnline = onlineUser.value.includes(member.id)
                     }
                 }
                 chats.value.push(newResult)
             })
+            console.log(chats.value , 'chats')
         }
 
+        //MESSAGES OF USER
         const messageOfUser = async () => {
             const chatRoomId = getActiveChatId(route);
             try {
@@ -130,17 +136,19 @@ export const useChatStore = defineStore('chat',
                     user: item.user,
                     image: item.userImage,
                     userName: item.userName,
-                    isOnline : item.isOnline
                 }));
-                console.log(chats.value)
+
             } catch (error) {
                 console.error("Error fetching chat messages:", error);
                 // Handle error appropriately
             }
         }
-        const reversChatMessage =computed(()=>{
+
+        // REVERSE CHAT MESSAGES
+        const reversChatMessage = computed(() => {
             return [...chatMessages.value].reverse()
         })
+
         //GET USER ID//
         const getUserId = () => {
             const token = localStorage.getItem('token')
@@ -151,20 +159,23 @@ export const useChatStore = defineStore('chat',
             return ''
         }
         const messagesContainer = ref(null)
-        const scrollToBottom =async () => {
-           await nextTick(() => {
+        const scrollToBottom = async () => {
+            await nextTick(() => {
                 if (messagesContainer.value) {
                     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
                 }
             });
         };
+
+        // FORMAT OF USER CHAT
         const loggedInUserId = getUserId();
         const getChatMessageClassName = (userId) => {
             return loggedInUserId === userId
                 ? "text-right justify-end"
                 : "";
         };
-        //// get time ///
+
+        //// FORMAT OF TIME
         const is_date = (date) => {
             if (Object.prototype.toString.call(date) === "[object Date]") {
                 return true;
@@ -188,9 +199,7 @@ export const useChatStore = defineStore('chat',
             }
             return hour + ":" + minute + " " + meridian;
         };
-   const onlineUsers =computed(()=>{
-       let online = chats.value.map()
-   })
+
         // WEB SOCKET ///
         const initWebSocket = () => {
             socket.value = new WebSocket(`ws://localhost:8000/ws/users/${getUserId()}/chat/`);
@@ -205,6 +214,8 @@ export const useChatStore = defineStore('chat',
             console.log('websocket is connected')
             socket.value.send(JSON.stringify({action: 'subscribe', roomId: getActiveChatId(route)}))
         };
+
+        //ON MESSAGE
         const onWebSocketMessage = (event) => {
             const newMessage = JSON.parse(event.data)
             const userImageUrl = messageOfUser().image
@@ -214,7 +225,8 @@ export const useChatStore = defineStore('chat',
                     user: newMessage.user,
                     time: newMessage.timestamp,
                     userImage: JSON.stringify(userImageUrl),
-                    userName: newMessage.userName
+                    userName: newMessage.userName,
+                    online :newMessage.userList
                 });
             }
             if (newMessage.action === SocketActions.TYPING && newMessage.user !== userId) {
@@ -224,31 +236,21 @@ export const useChatStore = defineStore('chat',
                     usersTyping.value = usersTyping.value.filter((userId) => userId !== newMessage.user);
                 }
             }
-        }
+                if (newMessage.action === SocketActions.ONLINE_USER) {
+                    onlineUser.value.push(newMessage.userList);
+                }
+            }
+        //SEND MESSAGE
         const sendMessage = () => {
             const activeChatId = getActiveChatId(route)
             if (activeChatId !== null) {
-                let currentDateTime = new Date()
-                let userImageUrl = messageOfUser().image
-                let username = messageOfUser().userName
                 let to_send = {
                     message: new_message.value
                     , action: SocketActions.MESSAGE
                     , user: getUserId(),
                     roomId: activeChatId,
-                    // timestamp: currentDateTime.toISOString(),
-                    // userImage: userImageUrl,
-                    // userName: username
                 }
                 socket.value.send(JSON.stringify(to_send))
-                // chatMessages.value.push({
-                //     roomId: activeChatId,
-                //     message: new_message.value,
-                //     user: getUserId(),
-                //     time: to_send.timestamp,
-                //     image: to_send.userImage,
-                //     userName: to_send.username
-                // })
                 new_message.value = ''
             } else {
                 console.log('error dari')
@@ -268,8 +270,7 @@ export const useChatStore = defineStore('chat',
         }
 
 
-        //      ACTION ////
-
+        // TYPING ACTION
         const sendTypingSignal = (typing) => {
             socket.value.send(
                 JSON.stringify({
@@ -297,6 +298,8 @@ export const useChatStore = defineStore('chat',
                 isTypingSignalSent.value = false;
             }
         };
+
+        //GET FILE INPUT
         const fileInputChange = computed(() => {
             return (fileInput) => {
                 let files = fileInput.target.files || fileInput.dataTransfer.files;
@@ -306,6 +309,7 @@ export const useChatStore = defineStore('chat',
             }
         })
 
+        //LOGIN
         const send_request_login = async () => {
             const res = await axios.post(`${serverUrl.BASE_URL}${ApiEndpoints.LOGIN_URL}`, {
                     username: login.value.email,
@@ -322,7 +326,7 @@ export const useChatStore = defineStore('chat',
             localStorage.setItem('refresh', refresh)
             await router.push('/')
         }
-
+        //SIGN UP
         const send_request_signUp = async () => {
             try {
                 const formData = new FormData();
@@ -405,6 +409,8 @@ export const useChatStore = defineStore('chat',
             reversChatMessage,
             scrollToBottom,
             messagesContainer,
-profileOfUserId
+profileOfUserId,
+            onlineUser,
+
         }
     })

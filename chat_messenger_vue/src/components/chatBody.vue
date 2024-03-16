@@ -41,7 +41,7 @@ import {useRoute} from 'vue-router'
 const route = useRoute()
 const chatStore = useChatStore()
 import {onMounted, toRefs, watch, ref, nextTick, computed} from "vue";
-const {initWebSocket , sendMessage,chatMessageTypingHandler , getTimeFromDate, chatUser, messageOfUser,getChatMessageClassName,scrollToBottom ,getUserId,getActiveChatId } = chatStore
+const {initWebSocket , sendMessage,chatMessageTypingHandler , getTimeFromDate, chatUser, messageOfUser,getChatMessageClassName,scrollToBottom ,getUserId,getActiveChatId , onlineUser} = chatStore
 const { new_message , socket , userId ,chatMessages ,reversChatMessage,isUserTyping , typingUserName , usersTyping,chats,profileOfUserId } = toRefs(chatStore)
 
 onMounted(()=>{
@@ -69,7 +69,6 @@ const myUserId = getUserId(); // Replace this with your actual user ID
 const typingUsersMessage = computed(() => {
   // Filter out your own user ID
   const otherTypingUsers = usersTyping.value.filter(userId => userId !== myUserId);
-
   if (otherTypingUsers.length === 0) {
     return ''; // No one else is typing
   } else if (otherTypingUsers.length === 1) {
@@ -78,6 +77,7 @@ const typingUsersMessage = computed(() => {
     return 'Several people are typing...'; // Multiple other users typing
   }
 });
+
 const handleTypingUsersChange = () => {
   console.log('Typing users:', usersTyping.value);
   // Add any other logic you need to handle the change
@@ -94,6 +94,10 @@ watch(usersTyping, () => {
   align-items: center;
   display: flex;
   height: 17px;
+  background-color: #bbdbee;
+  border-radius: 25px;
+  display: inline;
+  padding: 10px 20px;
 }
 .typing .dot {
   animation: mercuryTypingAnimation 1s infinite ease-in-out;

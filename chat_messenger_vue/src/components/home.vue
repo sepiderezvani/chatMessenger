@@ -14,9 +14,10 @@
 import ChatBody from '@/components/chatBody.vue'
 import SideBar from '@/components/sideBar.vue'
 import {useChatStore} from "@/store/chat-store.js";
-import {toRefs} from "vue";
+import {toRefs , computed} from "vue";
 const chatStore = useChatStore()
-const {chatMessages}=toRefs(chatStore)
+const {chatMessages , chats}=toRefs(chatStore)
+
 </script>
 
 <style>
